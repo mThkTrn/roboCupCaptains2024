@@ -1,31 +1,49 @@
-#WARNING: COde not updated to most recent version
-
+from adafruit_motorkit import MotorKit
 import time
 import math
 import serial
+import Rpi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
 
-ser = serial.Serial(115200)
+ser = serial.Serial("/dev/ttyACM0", 9600)
+print("running drive.py")
 
-from adafruit_motorkit import MotorKit
+shootpin = 10
+
+GPIO.setup(shootpin,  GPIO.OUT)
 
 kit = MotorKit()
 
-def drive_motors(pwr):
-    kit.motor1.throttle = pwr[1]
-    kit.motor2.throttle = pwr[2]
-    kit.motor3.throttle = pwr[3]
-    kit.motor4.throttle = pwr[4]
+def setpwrs(p1, p2, p3, p4):
+    kit.motor1.throttle = p1
+    kit.motor2.throttle = p2
+    kit.motor3.throttle = p3
+    kit.motor4.throttle = p4
 
-def ang_to_pwr(ang):
-    return (math.cos(ang), math.sin(ang), math.cos(ang), math.sin(ang))
+def drive_ang(ang):
+    ang = math.radians(ang) + (5/4)*math.pi
+    setpwrs(math.sin(ang), math.cos(ang), math.sin(ang), math.cos(ang))
 
-def turn(dir):
-    # 1 means clockwise, -1, means counterclockwise
-    return (dir, -dir, dir, -dir)
+def read_serial():
+    out = ser.readline().decode()[2:-5]
+    if isalpha(out):
+        return out
+    else:
+        return float(out)
+
+print("running!")
 
 while True:
-    ang = ser.read(1)
-    if ang != -1:
-        drive_motors(ang_to_pwr(ang))
+    shoot = False
+    serial_in = read_serial()
+    print(serial_in)
+    if serial_in == "":
+        continue
+    elif serial_in == "turn":
+        setpwrs(1, 1, 1, 1)
+    elif serial_in == "shoot":
+        shoot = True
     else:
-        drive_motors(turn(1))
+        drive_ang(ang)
+    GPIO.output(shootpin, shoot)
+
