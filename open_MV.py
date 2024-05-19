@@ -1,132 +1,119 @@
-import sensor, image, time, math
-import time
-from pyb import UART
-startTime1=0
-x=0
-y=0
-uart = UART(3, 115200, timeout_char=1000)
-uart.init(57600, bits=8, parity=None, stop=1, timeout_char=1000)
-threshold_index = 0
+#WARNING: Code not updated to most recent version
 
-thresholds = [(66, 76, 37, 59, 5, 31)] #ball
-thresholds2 = [(42, 55, -41, -2, -29, -3)] #blue
-thresholds3 = [(57, 76, -11, 13, 9, 52)] #yellow
+import pyb # Import module for board related functions
+import sensor # Import the module for sensor related functions
+import image # Import module containing machine vision algorithms
+import time # Import module for tracking elapsed time
+import math
+sensor.reset() # Resets the sensor
+sensor.set_pixformat(sensor.RGB565) # Sets the sensor to RGB
+sensor.set_framesize(sensor.QVGA) # Sets the resolution to 320x240 px
+#sensor.set_vflip(True) # Flips the image vertically
+#sensor.set_hmirror(True) # Mirrors the image horizontally
+sensor.skip_frames(time = 2000) # Skip some frames to let the image stabilize
 
-sensor.reset()
-sensor.set_pixformat(sensor.RGB565)
-sensor.set_framesize(sensor.QVGA)
-sensor.skip_frames(30)
-sensor.set_auto_gain(False)
-sensor.set_auto_whitebal(False)
-clock = time.clock()
+
+uart = pyb.UART(3, 9600, timeout_char=1000)
+uart.init(9600)
+
+goalminsize = 10
+goalsize = -1
+goalshootsize = 100
+
+# Define the min/max LAB values we're looking for for the ball
+thresholdsBall = (0, 100, 19, 127, -128, 127)
+goal1thresholds = (73, 100, -128, 42, -128, 40) #change thresholds, blue
+goal2thresholds = (73, 100, -128, 42, -128, 40) #change thresholds, yellow
+
+ledRed = pyb.LED(1) # Initiates the red led
+ledGreen = pyb.LED(2) # Initiates the green led
+
+clock = time.clock() # Instantiates a clock object
+
+ang = 0
+targetgoal = -1
+
 while(True):
-    clock.tick()
-    img = sensor.snapshot()
-    blobs = []
-    #blobs2 = []
-    x, y, xVel, yVel, balltheta = 0, 0, 0,
-    for blob in img.find_blobs([thresholds[threshold_index]],pixels_threshold=10, area_threshold=10, merge=True):
-        img.draw_rectangle(blob.rect())
-        img.draw_cross(blob.cx(), blob.cy())
-        newX = blob.cx() - 160
-        newY = 120 - blob.cy()
-        distance = math.sqrt(newX*newX + newY*newY)
-        a = -522.0
-        b = 46.95
-        c = -1.582
-        d = 0.02583
-        ee = -0.0002041
-        f = 6.307*(10**(-7))
-        formula = (a) + b*distance+ c*(distance**2) + d*(distance**3) + ee*(distance**4) + f*(distance**5);
-        formula/=100
-        balltheta=(math.atan2(-blob.cy()+120,blob.cx()-160)+math.pi);
-        balltheta=2*math.pi-balltheta
-        newX=math.cos(balltheta)*formula
-        newY=math.sin(balltheta)*formula
-        xVel=(newX-x)/(time.ticks()/1000-startTime1)
-        yVel=(newY-y)/(time.ticks()/1000-startTime1)
-        x=newX
-        y=newY
-        startTime1=time.ticks()/1000
-    uart.write(str(x)+","+str(y)+","+str(xVel)+","+str(yVel)+","+str(balltheta)+"\n")
+    clock.tick() # Advances the clock
+    img = sensor.snapshot() # Takes a snapshot and saves it in memory
 
-    currentblobs = img.find_blobs([thresholds2[threshold_index]],pixels_threshold=50, area_threshold=50, merge=True)
-    biggestBlob = 0;
-    for blob in img.find_blobs([thresholds2[threshold_index]],pixels_threshold=40, area_threshold=40, merge=True):
-        if(biggestBlob==0):
-            biggestBlob=blob
-        print(currentblobs);
-        print("blob count", blob.count())
-        if(blob.area()> biggestBlob.area()):
-            biggestBlob=blob
-        img.draw_rectangle(blob.rect())
-        img.draw_cross(blob.cx(), blob.cy())
-        newX = blob.cx() - 160
-        newY = 120 - blob.cy()
-        distance = math.sqrt(newX*newX + newY*newY)
-        a = -522.0
-        b = 46.95
-        c = -1.582
-        d = 0.02583
-        ee = -0.0002041
-        f = 6.307*(10**(-7))
-        print(biggestBlob)
+    # Find blobs with a minimal area of 50x50 = 2500 px
+    # Overlapping blobs will be merged
 
-    if biggestBlob == 0:
-        bluetheta, formula = -1, -1
 
-    bluetheta=(math.atan2(-biggestBlob.cy()+120,biggestBlob.cx()-160)+math.pi);
-    bluetheta=2*math.pi-biggestBlob
-    formula = (a) + b*distance+ c*(distance**2) + d*(distance**3) + ee*(distance**4) + f*(distance**5);
-    uart.write("blue"+","+str(formula)+","+str(bluetheta)+"\n")
+    ballcoords = [-1,-1]
+    goal1coords = [-1, -1]
+    goal2coords=[-1,-1]
+    # Draw blobs
 
-    currentblobsYel = img.find_blobs([thresholds3[threshold_index]],pixels_threshold=50, area_threshold=50, merge=True)
-    biggestBlobYel = 0;
-    for blob in img.find_blobs([thresholds3[threshold_index]],pixels_threshold=50, area_threshold=50, merge=True):
-        if(biggestBlobYel==0):
-            biggestBlobYel=blob
-        print(currentblobsYel)
-        if(blob.area()> biggestBlobYel.area()):
-            biggestBlobYel=blob
-        img.draw_rectangle(blob.rect())
-        img.draw_cross(blob.cx(), blob.cy())
-        newX = blob.cx() - 160
-        newY = 120 - blob.cy()
-        distance = math.sqrt(newX*newX + newY*newY)
-        a = -522.0
-        b = 46.95
-        c = -1.582
-        d = 0.02583
-        ee = -0.0002041
-        f = 6.307*(10**(-7))
-        print(biggestBlobYel)
+    blobs = img.find_blobs([thresholdsBall], merge=True)
 
-    if biggestBlobYel == 0:
-        yellowtheta, formula = -1, -1
+    for blob in blobs:
+        # Draw a rectangle where the blob was found
+        #if blob.area() > 1 and blob.area() < 1000:
+        img.draw_rectangle(blob.rect(), color=(255,0,0))
+        ballcoords = [blob.cx(), blob.cy()]
+        # Draw a cross in the middle of the blob
+        img.draw_cross(blob.cx(), blob.cy(), color=(255,0,0))
 
-    yellowtheta=(math.atan2(-biggestBlobYel.cy()+120,biggestBlobYel.cx()-160)+math.pi)
-    yellowtheta=2*math.pi-yellowtheta
-    formula = (a) + b*distance+ c*(distance**2) + d*(distance**3) + ee*(distance**4) + f*(distance**5);
-    print("yellow camera distance: ", distance, "yellow actual distance: ", formula, "theta", yellowtheta)
-    uart.write("yellow"+","+str(formula)+","+str(yellowtheta)+"\n")
-"""
-    for blob in img.find_blobs([thresholds3[threshold_index]],pixels_threshold=150, area_threshold=150, merge=True):
-        blobs2.append(blob)
-        area = 0
-    for blob in blobs2:
-        if blob.area() > area2:
-            area2 = blob.area()
-            img.draw_rectangle(blob.rect())
-            img.draw_cross(blob.cx(), blob.cy())
-            newX = blob.cx() - 160
-            newY = 120 - blob.cy()
-            distance = math.sqrt(newX*newX + newY*newY)
-            a = -522.0
-            b = 46.95
-            c = -1.582
-            d = 0.02583
-            ee = -0.0002041
-            f = 6.307*(10**(-7))
-            formula = (a) + b*distance+ c*(distance**2) + d*(distance**3) + ee*(distance**4) + f*(distance**5);
-            print("blue camera distance: ", distance, "blue actual distance: ", formula)
-"""
+    #Turn on green LED if a blob was found
+    if len(blobs) > 0:
+        ledGreen.on()
+        ledRed.off()
+    else:
+    # Turn the red LED on if no blob was found
+        ledGreen.off()
+        ledRed.on()
+
+    goal1blobs = img.find_blobs([goal1thresholds], merge=True)
+    for blob in goal1blobs:
+        # Draw a rectangle where the blob was found
+        if blob.area() > goalminsize:
+            if targetgoal == -1: targetgoal=1
+            img.draw_rectangle(blob.rect(), color=(0,0,255))
+            goal1 = [blob.cx(), blob.cy()]
+            # Draw a cross in the middle of the blob
+            img.draw_cross(blob.cx(), blob.cy(), color=(0,0,255))
+            if targetgoal == 1:
+                goalsize = blob.area()
+
+    goal2blobs = img.find_blobs([goal1thresholds], merge=True)
+    for blob in goal2blobs:
+        # Draw a rectangle where the blob was found
+        if blob.area() > goalminsize:
+            if targetgoal == -1: targetgoal=2
+            img.draw_rectangle(blob.rect(), color=(0,255,255))
+            goal2 = [blob.cx(), blob.cy()]
+            # Draw a cross in the middle of the blob
+            img.draw_cross(blob.cx(), blob.cy(), color=(0,255,255))
+            if targetgoal == 2:
+                goalsize = blob.area()
+
+    pyb.delay(50) # Pauses the execution for 50ms
+    center = (160, 240)
+    vector = [ballcoords[0]-center[0], ballcoords[1]-center[1]]
+    if ballcoords == [-1, -1]:
+        if targetgoal == 1:
+            vector = [goal1coords[0]-center[0], goal1coords[1]-center[1]]
+            if goalsize > goalshootsize:
+                print("--shoot"+"\n")
+        elif targetgoal == 2:
+            vector = [goal2coords[0]-center[0], goal2coords[1]-center[1]]
+            if goalsize > goalshootsize:
+                print("--shoot"+"\n")
+        else:
+            print("--turn"+"\n")
+    try:
+        ang = math.atan(vector[0]/vector[1])
+    except ZeroDivisionError:
+        ang = math.pi
+    #print(ballcoords, vector, ang) # Prints the framerate to the serial console
+    #uart.write(ang, 1, "little")
+    out = (str(ang)+"\n").encode("utf-8")
+    print(out)
+#    for i in list(map(hex, out)):
+
+#        #uart.write(int(i).to_bytes(1, "little"))
+#        print(int(i))
+    #uart.write(int(50).to_bytes(1, "big"))
+
