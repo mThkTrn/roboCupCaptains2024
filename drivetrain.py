@@ -1,8 +1,7 @@
 from adafruit_motorkit import MotorKit
 import time
 import math
-
-import Rpi.GPIO as GPIO
+import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
 
 
@@ -13,9 +12,9 @@ GPIO.setup(shootpin,  GPIO.OUT)
 kit = MotorKit()
 
 def setpwrs(p1, p2, p3, p4):
-    kit.motor1.throttle = p1
+    kit.motor1.throttle = -p1
     kit.motor2.throttle = p2
-    kit.motor3.throttle = p3
+    kit.motor3.throttle = -p3
     kit.motor4.throttle = p4
 
 def drive_ang(ang):
@@ -32,6 +31,10 @@ def shoot():
 
 def zero_motors():
     setpwrs(0, 0, 0, 0)
+
+#def circle():
+
+
 # while True:
 #     shoot = False
 #     serial_in = read_serial()
