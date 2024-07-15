@@ -13,9 +13,10 @@ sensor.set_framesize(sensor.QVGA) # Sets the resolution to 320x240 px
 sensor.skip_frames(time = 2000) # Skip some frames to let the image stabilize
 
 goalminsize = 10
+ballminsize = 200
 
 # Define thresholds
-thresholdsBall = (0, 100, 19, 127, -128, 127)
+thresholdsBall = (60, 100, -28, -13, 12, 57)
 goal1thresholds = (73, 100, -128, 42, -128, 40) #blue
 goal2thresholds = (73, 100, -128, 42, -128, 40) #yellow
 
@@ -37,12 +38,13 @@ while True:
     ballsize = -1
     goal1size = -1
     goal2size = -1
+
     # Draw blobs
 
     blobs = img.find_blobs([thresholdsBall], merge=True)
 
     for blob in blobs:
-        if blob.area() > ballsize:
+        if blob.area() > ballsize and blob.area() > ballminsize:
             img.draw_rectangle(blob.rect(), color=(255,0,0))
             ballcoords = [blob.cx(), blob.cy()]
             img.draw_cross(blob.cx(), blob.cy(), color=(255,0,0))
@@ -83,7 +85,7 @@ while True:
     goal1vec = [goal1coords[0]-center[0], goal1coords[1]-center[1]]
     goal2vec = [goal2coords[0]-center[0], goal2coords[1]-center[1]]
 
-    if ballvec !+ [-1, -1]:
+    if ballvec != [-1, -1]:
         try:
             ballang = math.atan(ballcoords[1]/ballcoords[0])
         except ZeroDivisionError:
@@ -98,7 +100,7 @@ while True:
                 goal1ang = -10 # -10 is the code for straight ahead
     else:
         goal1ang = -1
-    
+
 
     if goal2vec != [-1, -1]:
         try:
